@@ -8,8 +8,9 @@
 
 #include <iostream>
 #include <sys/param.h>//MAXPATHLEN
- #include <unistd.h> //chdir
-
+#include <unistd.h> //chdir
+#include <vector>
+using namespace std;
 
 
 const char *language[]=
@@ -44,11 +45,70 @@ bool isLetter(char c)
            (c >= 'A' && c <= 'Z' ) ;
 }
 
+
+bool parseLine(char *s,int len,vector<string> &ret)
+{
+    if (s==NULL)
+        return false;
+    
+    char *curr=s;
+    char *last=NULL;
+    for (;curr <= s + len;curr++)
+    {
+        if (curr[0]=='"')
+        {
+            if (last==NULL)
+            {
+                last=curr;
+            }
+            else
+            {
+                ret.push_back(string(last+1,curr));
+                last=NULL;
+            }
+        }
+    }
+    
+    return last==NULL;
+}
+
+
+bool getLine(FILE *file,string &line)
+{
+    const int bufLen=1000;
+    char buff[bufLen];
+    char buff2[1]={'\0'};
+    
+    fread(buff, sizeof(char), bufLen  , file);
+    
+    char *p = strchr(buff, '\n');
+    if (p)
+    {
+        line=string(buff,p);
+        
+        //point the next new line.
+        p++;
+        
+        fseek(file, buff+ bufLen - p, SEEK_CUR);
+        
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+    
+    return  false;
+}
+
+
+
+/**
+ @usage: exec [parent path of localized string files] [path of file where updated localized string stores]
+*/
 int main(int argc, const char * argv[])
 {
     char *wd = (char*)argv[1];
-    
-    wd = (char*) "/Users/liaogang/GenieForIOS-NEWDLNA2/GenieForiOS2014_6_4/GenieForiOS-NewDLNA/GenieforiOS_2.0.45/1.0/GenieiPad/GenieiPad/GenieiPad";
     
     ///change current working directory.
     if(chdir(wd) == -1)
@@ -60,55 +120,107 @@ int main(int argc, const char * argv[])
     
     
     
-    ///parse language order
-    char *languageOrder = (char*)
-     " 	English	German	Swedish	French	Dutch	Italian	Spanish	Danish	Finnish	Norwegian	Greek	Portuguese	Russian	Polish	Hungarian	Czech	Slovenian	Slovak	Romanian	Bulgarian	Croatian	Simple Chinese	Korean	Japanese	Arabic	Turkish	Traditional Chinese"
-    ;
+   int arrayLanguageOrder[folderNum];
+    vector<vector<string>> vecLocalizedStrings;
     
-    char *beg=languageOrder;
-    char *end;
-   
-    int arrayLanguageOrder[folderNum];
-    memset(arrayLanguageOrder, -1, sizeof(arrayLanguageOrder[0])*folderNum);
     
-    int len = strlen(languageOrder);
-    int wordIndex=0;
-    while (end <= languageOrder + len && beg <= languageOrder + len)
+    
+    
+   char *filePathUpdate = (char*)argv[2];
+    FILE *fileUpdate=fopen(filePathUpdate, "r");
+    if (fileUpdate)
     {
-        while (!isLetter(beg[0])) {
-            beg++;
-        }
+        long fileSize=ftell(fileUpdate);
+       
         
-        end=beg;
-        while (isLetter(end[0])) {
-            end++;
-        }
+        ///parse language order
+        string stringLanguageOrder;
+        getLine(fileUpdate, stringLanguageOrder);
+       
+        char *languageOrder = (char*) stringLanguageOrder.c_str();
         
-        int l = folderNum;
-        for (int i = 0; i < folderNum ; i++)
+        char *beg=languageOrder;
+        char *end;
+        
+        
+        memset(arrayLanguageOrder, -1, sizeof(arrayLanguageOrder[0])*folderNum);
+        
+        int len = strlen(languageOrder);
+        int wordIndex=0;
+        while (end <= languageOrder + len && beg <= languageOrder + len)
         {
-            if(strncmp(language[i], beg , end - beg)==0)
-            {
-                printf("%d: %s\n", wordIndex ,language[i]);
-                arrayLanguageOrder[wordIndex]=i;
-                wordIndex++;
-                break;
+            while (!isLetter(beg[0])) {
+                beg++;
             }
+            
+            end=beg;
+            while (isLetter(end[0])) {
+                end++;
+            }
+            
+            int l = folderNum;
+            for (int i = 0; i < folderNum ; i++)
+            {
+                if(strncmp(language[i], beg , end - beg)==0)
+                {
+                    printf("%d: %s\n", wordIndex ,language[i]);
+                    arrayLanguageOrder[wordIndex]=i;
+                    wordIndex++;
+                    break;
+                }
+            }
+            
+            beg=end+1;
         }
         
-        beg=end+1;
+        
+        ///print it.
+        //    for (int i = 0; i < folderNum ; i++)
+        //    {
+        //        if (arrayLanguageOrder[i]==-1)
+        //            continue;
+        //        
+        //        printf("%d: language: %s\n", i ,language[arrayLanguageOrder[i]]);
+        //    }
+        
+        
+        
+        
+        
+        string line;
+        while( !feof(fileUpdate) )
+        {
+            if( getLine(fileUpdate,line) )
+                ///valid line?
+                if (line.size()>10)
+                {
+                    cout<<line<<endl;
+                    
+                    
+                    ///key "en" "fr" "zh-hans" ...
+                    char *localizedStrings=(char*) line.c_str();
+                    
+                    char toFind = '"';
+                    len = line.length();
+                    beg = localizedStrings;
+                    int numFind=0;
+
+                    vector<string> vecLocalizedString;
+                    
+                    
+                    if(!  parseLine(localizedStrings,len,vecLocalizedString) )
+                    {
+                        printf("can not parse string: %s\n",localizedStrings);
+                    }
+
+                    
+                    
+                }
+        }
+        
+        
+        fclose(fileUpdate);
     }
-    
-    
-    ///print it.
-//    for (int i = 0; i < folderNum ; i++)
-//    {
-//        if (arrayLanguageOrder[i]==-1)
-//            continue;
-//        
-//        printf("%d: language: %s\n", i ,language[arrayLanguageOrder[i]]);
-//    }
-    
     
     
     
@@ -132,6 +244,8 @@ int main(int argc, const char * argv[])
             printf("success: open file: %s\n",folderName);
             
             
+            
+            fclose(file);
         }
         else
         {
