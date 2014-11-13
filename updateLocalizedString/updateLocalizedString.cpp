@@ -65,7 +65,7 @@ bool parseLine(char *s,int len,vector<string> &ret)
             }
             else
             {
-                ret.push_back(string(last+1,curr));
+                ret.push_back(string(last,curr+1));
                 last=NULL;
             }
         }
@@ -79,28 +79,30 @@ bool getLine(FILE *file,string &line)
 {
     const int bufLen=2000;
     char buff[bufLen];
-    char buff2[1]={'\0'};
     
-    fread(buff, sizeof(char), bufLen  , file);
+    int readed = fread(buff, sizeof(char), bufLen - 2  , file);
+    if (readed == 0)
+        return false;
+    
+    buff[readed+1]='\n';
+    buff[readed+2]='\0';
     
     char *p = strchr(buff, '\n');
     if (p)
     {
         line=string(buff,p);
         
-        //point the next new line.
-        p++;
         
-        fseek(file, buff+ bufLen - p, SEEK_CUR);
+        //point the next new line.
+        while (p[0]=='\n')
+            p++;
+        
+        fseek(file,  (p - buff) - readed , SEEK_CUR);
         
         return true;
     }
-    else
-    {
-        return false;
-    }
     
-    return  false;
+    return  true;
 }
 
 
@@ -147,7 +149,7 @@ int main(int argc, const char * argv[])
     
     ///parse the file where updated localized string stores
     char *filePathUpdate = (char*)argv[2];
-    FILE *fileUpdate=fopen(filePathUpdate, "wr");
+    FILE *fileUpdate=fopen(filePathUpdate, "r");
     if (fileUpdate)
     {
         ///parse language order
@@ -157,7 +159,7 @@ int main(int argc, const char * argv[])
         char *languageOrder = (char*) stringLanguageOrder.c_str();
         
         char *beg=languageOrder;
-        char *end;
+        char *end = NULL;
         
         
         memset(arrayLanguageOrder, -1, sizeof(arrayLanguageOrder[0])*folderNum);
@@ -198,6 +200,8 @@ int main(int argc, const char * argv[])
         {
             if( getLine(fileUpdate,line) )
             {
+                //printf("%s\n",line.c_str());
+                
                 ///valid line?
                 if (line.size()>10)
                 {
@@ -212,15 +216,12 @@ int main(int argc, const char * argv[])
                     int numFind=0;
 
                     vector<string> vecLocalizedString;
-                    
-                    
                     if(!  parseLine(localizedStrings,len,vecLocalizedString) )
                     {
                         printf("can not parse string: %s\n",localizedStrings);
                     }
-
                     
-                    
+                    vecLocalizedStrings.push_back(vecLocalizedString);
                 }}
         }
         
@@ -243,7 +244,7 @@ int main(int argc, const char * argv[])
         char folderName[MAXPATHLEN];
         strcat( strcpy(folderName, arrFolderName[arrayLanguageOrder[i] ] ) ,".lproj/Localizable.strings");
 
-        FILE *file=fopen( folderName , "wr");
+        FILE *file=fopen( folderName , "r");
         if (file)
         {
             fileArrays[i]=file;
@@ -257,8 +258,8 @@ int main(int argc, const char * argv[])
                 printf("file is too large: %s\n",folderName);
             }
             
-            
-            fread(fileBuff, sizeof(char), fileBuffLen , file);
+            bool isDirty = false;
+            int readed = fread(fileBuff, sizeof(char), fileBuffLen , file);
             int ll = vecLocalizedStrings.size();
             for (int j = 0; j < ll; j++)
             {
@@ -267,42 +268,80 @@ int main(int argc, const char * argv[])
                 string key=veckeyValues[0];
                 string value = veckeyValues[i+1];
                 
+                
+                
+                int keyLen=key.length();
+                int keyLen2 = strlen(key.c_str());
+                
                 string line;
-                char *lineBeg = fileBuff ;
-                char *nextLine = strchr(lineBeg, '\n');
-                if (nextLine && nextLine<=fileBuff+fileSize)
+                int lines=1;
+                
+                ///add a empty line in file end.
+                if (fileBuff[fileSize]!='\n')
+                    fileBuff[fileSize+1]='\n';
+                /*
+                char *lineBeg=fileBuff;
+                char *lineEnd=NULL;
+                
+                lineEnd = strchr(lineBeg, '\n');
+                while(lineEnd[0] =='\n')
                 {
-                    int keyLen=key.length();
-                    char *keyBeg= strstr(lineBeg, key.c_str());
-                    if ( keyBeg && keyBeg <nextLine)
+                    lineEnd++;
+                    lines++;
+                }
+                */
+                
+                printf("~~~%s~~~\n",key.c_str());
+                char *keyBeg= strstr(fileBuff, key.c_str());
+                if ( keyBeg )
+                {
+                    char *lineBeg = strrchr(keyBeg, '\n');
+                    char *noteBeg = strstr(lineBeg, "//");
+                    char *noteBeg2 =strstr(lineBeg, "/*");
+                    
+                    if ( (noteBeg && noteBeg < keyBeg ) ||
+                        ( noteBeg2 && noteBeg2 < keyBeg ) )
                     {
-                        char *valueBeg= strchr(keyBeg+keyLen, '"' );
-                        if (valueBeg && valueBeg < nextLine)
-                        {
-                            char *valueEnd = strchr(valueBeg, '"');
-                            if (valueEnd && valueEnd < nextLine)
-                            {
-                                int valueLen = value.length();
-                                ///replace  (valueBeg,valueEnd)  with value
-                                memmove( valueBeg + valueLen , valueEnd, fileBuff + fileSize - valueEnd);
-                                memcpy(valueBeg, value.c_str() , valueLen );
-                                fileSize += valueLen - (valueEnd - valueBeg);
-                            }
-                        }
-                        
-                        
+                        //
                     }
+                    
+                    char *valueBeg= strchr(keyBeg+keyLen+2, '"' );
+                    if (valueBeg )
+                    {
+                        char *valueEnd = strchr(valueBeg + 1 , '"');
+                        if (valueEnd )
+                        {
+                            valueEnd++;
+                            int valueLen = value.length();
+                            ///replace  (valueBeg,valueEnd)  with value
+                            memmove( valueBeg + valueLen , valueEnd, fileBuff + fileSize - valueEnd);
+                            memcpy(valueBeg, value.c_str() , valueLen );
+                            fileSize += valueLen - (valueEnd - valueBeg);
+                            isDirty=true;
+                            string temp(keyBeg,valueEnd);
+                            printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                        }
+                    }
+                    
+                    
                 }
             }
             
         
             //write back
-            fseek(file, 0L, SEEK_SET);
-            fwrite(fileBuff, sizeof(char), fileSize , file);
-        
-
-            
             fclose(file);
+            
+            if (isDirty)
+            {
+                FILE *file2=fopen( folderName , "w");
+                if (file2)
+                {
+                    fwrite(fileBuff, sizeof(char), fileSize , file2);
+                    printf("write data back to file: %s\n",folderName);
+                    fclose(file2);
+                }
+            }
+            
         }
         else
         {
