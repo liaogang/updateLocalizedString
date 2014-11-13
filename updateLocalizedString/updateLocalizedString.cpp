@@ -12,6 +12,8 @@
 #include <vector>
 using namespace std;
 
+const int fileBuffLen = 500000;
+char fileBuff[fileBuffLen];
 
 const char *language[]=
 {
@@ -72,10 +74,10 @@ bool parseLine(char *s,int len,vector<string> &ret)
     return last==NULL;
 }
 
-
+long findKey(FILE *file,string key);
 bool getLine(FILE *file,string &line)
 {
-    const int bufLen=1000;
+    const int bufLen=2000;
     char buff[bufLen];
     char buff2[1]={'\0'};
     
@@ -102,6 +104,24 @@ bool getLine(FILE *file,string &line)
 }
 
 
+///return where new line begins.
+char* getLine(char *strFileBuf , string &line)
+{
+    char *p = strchr(strFileBuf, '\n');
+    if (p)
+    {
+        line=string(strFileBuf,p);
+        
+        //point the next new line.
+        p++;
+    }
+
+    return p;
+}
+
+
+
+
 
 /**
  @usage: exec [parent path of localized string files] [path of file where updated localized string stores]
@@ -121,18 +141,15 @@ int main(int argc, const char * argv[])
     
     
    int arrayLanguageOrder[folderNum];
-    vector<vector<string>> vecLocalizedStrings;
+   vector<vector<string>> vecLocalizedStrings;
     
     
     
-    
-   char *filePathUpdate = (char*)argv[2];
-    FILE *fileUpdate=fopen(filePathUpdate, "r");
+    ///parse the file where updated localized string stores
+    char *filePathUpdate = (char*)argv[2];
+    FILE *fileUpdate=fopen(filePathUpdate, "wr");
     if (fileUpdate)
     {
-        long fileSize=ftell(fileUpdate);
-       
-        
         ///parse language order
         string stringLanguageOrder;
         getLine(fileUpdate, stringLanguageOrder);
@@ -149,14 +166,14 @@ int main(int argc, const char * argv[])
         int wordIndex=0;
         while (end <= languageOrder + len && beg <= languageOrder + len)
         {
-            while (!isLetter(beg[0])) {
+            while (!isLetter(beg[0]))
                 beg++;
-            }
+            
             
             end=beg;
-            while (isLetter(end[0])) {
+            while (isLetter(end[0]))
                 end++;
-            }
+            
             
             int l = folderNum;
             for (int i = 0; i < folderNum ; i++)
@@ -173,29 +190,18 @@ int main(int argc, const char * argv[])
             beg=end+1;
         }
         
-        
-        ///print it.
-        //    for (int i = 0; i < folderNum ; i++)
-        //    {
-        //        if (arrayLanguageOrder[i]==-1)
-        //            continue;
-        //        
-        //        printf("%d: language: %s\n", i ,language[arrayLanguageOrder[i]]);
-        //    }
-        
-        
-        
-        
+
+
         
         string line;
         while( !feof(fileUpdate) )
         {
             if( getLine(fileUpdate,line) )
+            {
                 ///valid line?
                 if (line.size()>10)
                 {
                     cout<<line<<endl;
-                    
                     
                     ///key "en" "fr" "zh-hans" ...
                     char *localizedStrings=(char*) line.c_str();
@@ -215,7 +221,7 @@ int main(int argc, const char * argv[])
 
                     
                     
-                }
+                }}
         }
         
         
@@ -226,7 +232,7 @@ int main(int argc, const char * argv[])
     
     
     
-    ///parse file
+    ///parse file xx.lproj/Localizable.strings .
     
     ///ignore the notes in code.
     
@@ -235,15 +241,66 @@ int main(int argc, const char * argv[])
     for (int i =0 ; i < folderNum; i++)
     {
         char folderName[MAXPATHLEN];
-        strcat( strcpy(folderName, arrFolderName[i]) ,".lproj/Localizable.strings");
+        strcat( strcpy(folderName, arrFolderName[arrayLanguageOrder[i] ] ) ,".lproj/Localizable.strings");
 
-        FILE *file=fopen( folderName , "w");
+        FILE *file=fopen( folderName , "wr");
         if (file)
         {
             fileArrays[i]=file;
             printf("success: open file: %s\n",folderName);
             
+            fseek(file, 0, SEEK_END);
+            long fileSize = ftell(file);
+            fseek(file, 0L, SEEK_SET);
             
+            if (fileSize > fileBuffLen ) {
+                printf("file is too large: %s\n",folderName);
+            }
+            
+            
+            fread(fileBuff, sizeof(char), fileBuffLen , file);
+            int ll = vecLocalizedStrings.size();
+            for (int j = 0; j < ll; j++)
+            {
+                vector<string> veckeyValues = vecLocalizedStrings[j];
+                
+                string key=veckeyValues[0];
+                string value = veckeyValues[i+1];
+                
+                string line;
+                char *lineBeg = fileBuff ;
+                char *nextLine = strchr(lineBeg, '\n');
+                if (nextLine && nextLine<=fileBuff+fileSize)
+                {
+                    int keyLen=key.length();
+                    char *keyBeg= strstr(lineBeg, key.c_str());
+                    if ( keyBeg && keyBeg <nextLine)
+                    {
+                        char *valueBeg= strchr(keyBeg+keyLen, '"' );
+                        if (valueBeg && valueBeg < nextLine)
+                        {
+                            char *valueEnd = strchr(valueBeg, '"');
+                            if (valueEnd && valueEnd < nextLine)
+                            {
+                                int valueLen = value.length();
+                                ///replace  (valueBeg,valueEnd)  with value
+                                memmove( valueBeg + valueLen , valueEnd, fileBuff + fileSize - valueEnd);
+                                memcpy(valueBeg, value.c_str() , valueLen );
+                                fileSize += valueLen - (valueEnd - valueBeg);
+                            }
+                        }
+                        
+                        
+                    }
+                }
+            }
+            
+        
+            //write back
+            fseek(file, 0L, SEEK_SET);
+            fwrite(fileBuff, sizeof(char), fileSize , file);
+        
+
             
             fclose(file);
         }
@@ -260,3 +317,4 @@ int main(int argc, const char * argv[])
     
     return 0;
 }
+
