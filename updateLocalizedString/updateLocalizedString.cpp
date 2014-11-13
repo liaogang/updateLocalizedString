@@ -271,8 +271,7 @@ int main(int argc, const char * argv[])
                 
                 
                 int keyLen=key.length();
-                int keyLen2 = strlen(key.c_str());
-                
+               int valueLen = value.length();
                 string line;
                 int lines=1;
                 
@@ -311,26 +310,48 @@ int main(int argc, const char * argv[])
                         char *valueEnd = strchr(valueBeg + 1 , '"');
                         if (valueEnd )
                         {
-                            valueEnd++;
-                            int valueLen = value.length();
-                            ///replace  (valueBeg,valueEnd)  with value
-                            memmove( valueBeg + valueLen , valueEnd, fileBuff + fileSize - valueEnd);
-                            memcpy(valueBeg, value.c_str() , valueLen );
-                            fileSize += valueLen - (valueEnd - valueBeg);
-                            isDirty=true;
-                            string temp(keyBeg,valueEnd);
-                            printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                            //value beg ~ valueEnd == value ?
+                            if (strncmp(valueBeg, value.c_str(), valueLen) != 0)
+                            {
+                                valueEnd++;
+                                
+                                ///replace  (valueBeg,valueEnd)  with value
+                                memmove( valueBeg + valueLen , valueEnd, fileBuff + fileSize - valueEnd);
+                                memcpy(valueBeg, value.c_str() , valueLen );
+                                fileSize += valueLen - (valueEnd - valueBeg);
+                                isDirty=true;
+                                string temp(keyBeg,valueEnd);
+                                printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                            }
                         }
                     }
                     
                     
                 }
+                else
+                {
+                    ///add to end then.
+                    memcpy(fileBuff + fileSize , key.c_str() , keyLen );
+                    fileSize+= keyLen;
+                    
+                    memcpy(fileBuff + fileSize , "=" , 1);
+                    fileSize++;
+                    
+                    memcpy(fileBuff + fileSize , value.c_str() , valueLen);
+                    fileSize+=valueLen;
+                    
+                    fileBuff[fileSize+1]='\n';
+                    fileSize++;
+                    
+                    isDirty = true;
+                    
+                    printf("add line:  %s = %s \n", key.c_str(), value.c_str() );
+                }
             }
             
-        
-            //write back
             fclose(file);
             
+            //write back if data is changed.
             if (isDirty)
             {
                 FILE *file2=fopen( folderName , "w");
@@ -341,6 +362,7 @@ int main(int argc, const char * argv[])
                     fclose(file2);
                 }
             }
+            
             
         }
         else
