@@ -120,7 +120,7 @@ bool isInAnnoate(char * begin ,char *test , int testLen)
 
 
 
-
+/// return
 bool parseLine(char *s,int len,vector<string> &ret)
 {
     if (s==NULL)
@@ -274,11 +274,12 @@ int main(int argc, const char * argv[])
             
             
             ///parse the file where updated localized string stores
+            bool bUpdateFileError = false;
             char *filePathUpdate = (char*)argv[3];
             FILE *fileUpdate=fopen(filePathUpdate, "r");
             if (fileUpdate)
             {
-                printf("success open file: %s\n",filePathUpdate);
+                printf("success open file: %s\n\n",filePathUpdate);
                
                 size_t fileSize = fread( fileBuff, sizeof(char), fileBuffLen, fileUpdate);
                 
@@ -296,7 +297,7 @@ int main(int argc, const char * argv[])
                 memset(arrayLanguageOrder, -1, sizeof(arrayLanguageOrder[0])*folderNum);
                 
                 int len = strlen(languageOrder);
-                int wordIndex=0;
+                int languageCountInfile = 0;
                 while (end <= languageOrder + len && beg <= languageOrder + len)
                 {
                     while (!isLetter(beg[0]))
@@ -308,22 +309,23 @@ int main(int argc, const char * argv[])
                         end++;
                     
                     
-                    int l = folderNum;
+                    //int l = folderNum;
                     for (int i = 0; i < folderNum ; i++)
                     {
                         if(strncmp(language[i], beg , end - beg)==0)
                         {
-                            printf("%d: %s\n", wordIndex ,language[i]);
-                            arrayLanguageOrder[wordIndex]=i;
-                            wordIndex++;
+                            languageCountInfile++;
+                            printf("%d: %s\n", languageCountInfile ,language[i]);
+                            arrayLanguageOrder[languageCountInfile-1]=i;
                             break;
                         }
                     }
                     
                     beg=end+1;
                 }
+               
                 
-                printf("\n");
+                printf("\n~~~~~~total %d language finded.~~~~~\n\n", languageCountInfile);
                 
                 string line;
                 while( ( lineBegins = getLine( lineBegins, line) ) )
@@ -339,22 +341,31 @@ int main(int argc, const char * argv[])
                         char toFind = '"';
                         len = line.length();
                         beg = localizedStrings;
-                        int numFind=0;
+                        //int numFind=0;
                         
                         vector<string> vecLocalizedString;
-                        if(!  parseLine(localizedStrings,len,vecLocalizedString) )
+                        if( parseLine(localizedStrings,len,vecLocalizedString) )
                         {
-                            printf("can not parse string: %s\n",localizedStrings);
+                            int  sz = vecLocalizedString.size();
+                            if ( sz != languageCountInfile + 1 ) //values + key.
+                            {
+                                printf("line error , strings number: %d not equal to : %d + 1\n",sz , languageCountInfile + 1 );
+                                bUpdateFileError = true;
+                            }
+                            else
+                            {
+                                printf("new row added.\n");
+                                
+                                vecLocalizedStrings.push_back(vecLocalizedString);
+                            }
                         }
                         else
                         {
-                            if (vecLocalizedString.size() != wordIndex + 1 +1 )
-                                printf("line error");
-                            else
-                                printf("new row added.\n");
+                            printf("can not parse this row: %s\n",localizedStrings);
+                            bUpdateFileError = true;
                         }
                         
-                        vecLocalizedStrings.push_back(vecLocalizedString);
+                        
                     }
                 }
                 
@@ -365,174 +376,182 @@ int main(int argc, const char * argv[])
             printf("%lu rows in update file.\n",vecLocalizedStrings.size());
             
             
-            
-            ///parse file xx.lproj/Localizable.strings .
-            
-            ///ignore the notes in code.
-            
-            FILE **fileArrays=new FILE*[folderNum];
-            
-            for (int i =0 ; i < folderNum; i++)
+            if (!bUpdateFileError)
             {
-                char folderName[MAXPATHLEN];
-                strcat( strcpy(folderName, arrFolderName[arrayLanguageOrder[i] ] ) ,".lproj/Localizable.strings");
+                ///parse file xx.lproj/Localizable.strings .
                 
-               printf("\n");
+                ///ignore the notes in code.
                 
-                FILE *file=fopen( folderName , "r");
-                if (file)
+                FILE **fileArrays=new FILE*[folderNum];
+                
+                for (int i =0 ; i < folderNum; i++)
                 {
+                    char folderName[MAXPATHLEN];
+                    strcat( strcpy(folderName, arrFolderName[arrayLanguageOrder[i] ] ) ,".lproj/Localizable.strings");
+                    
+                    printf("\n");
+                    
+                    FILE *file=fopen( folderName , "r");
+                    if (file)
+                    {
 #ifdef DEBUG
-                    memset(fileBuff, 0 , fileBuffLen);
+                        memset(fileBuff, 0 , fileBuffLen);
 #endif
-                    
-                    fileArrays[i]=file;
-                    printf("success open file: %s\n",folderName);
-                    printf("parse language: %s\n", language[arrayLanguageOrder[i]]);
-                    
-                    fseek(file, 0, SEEK_END);
-                    long fileSize = ftell(file);
-                    fseek(file, 0L, SEEK_SET);
-                    
-                    if (fileSize + 600 > fileBuffLen ) {
-                        printf("file is too large: %s\n",folderName);
-                    }
-                   
-                    int readed = fread(fileBuff, sizeof(char), fileBuffLen , file);
-                    
-                    bool isDirty = false;
-                    
-                    /// add two empty line in file end.
-                    int lineWillAdd = 2;
-                    if(fileBuff[fileSize -1 ] =='\n')
-                        lineWillAdd--;
-                    if(fileBuff[fileSize -2 ] =='\n')
-                        lineWillAdd--;
-                    
-                    while(lineWillAdd>0)
-                    {
-                        fileBuff[fileSize]='\n';
-                        fileSize++;
-                        isDirty = true;
-                        lineWillAdd--;
-                    }
-                    
-                    /// add a zero terminal in file buffer's end.
-                    fileBuff[fileSize ]='\0';
-                    
-
-                    
-                    
-                    int ll = vecLocalizedStrings.size();
-                    for (int j = 0; j < ll; j++)
-                    {
-                        vector<string> veckeyValues = vecLocalizedStrings[j];
                         
-                        string key=veckeyValues[0];
-                        string value = veckeyValues[i+1];
+                        fileArrays[i]=file;
+                        printf("success open file: %s\n",folderName);
+                        printf("parse language: %s\n", language[arrayLanguageOrder[i]]);
                         
-                        int keyLen=key.length();
-                        int valueLen = value.length();
-                        string line;
-                        int lines=1;
+                        fseek(file, 0, SEEK_END);
+                        long fileSize = ftell(file);
+                        fseek(file, 0L, SEEK_SET);
                         
-                        /// begin find the key and write the value.
-                        bool keyValueWrited = false;
-                        printf("~~~%s~~~\n",key.c_str());
-                        char *keyBeg = fileBuff;
+                        if (fileSize + 600 > fileBuffLen ) {
+                            printf("file is too large: %s\n",folderName);
+                        }
                         
-                        while ( (keyBeg = strstr(keyBeg, key.c_str()))  )
+                        int readed = fread(fileBuff, sizeof(char), fileBuffLen , file);
+                        
+                        bool isDirty = false;
+                        
+                        /// add two empty line in file end.
+                        int lineWillAdd = 2;
+                        if(fileBuff[fileSize -1 ] =='\n')
+                            lineWillAdd--;
+                        if(fileBuff[fileSize -2 ] =='\n')
+                            lineWillAdd--;
+                        
+                        while(lineWillAdd>0)
                         {
-                            ///@todo: make sure the finded key is not a value...
-                            bool isKeyAValue = false;
+                            fileBuff[fileSize]='\n';
+                            fileSize++;
+                            isDirty = true;
+                            lineWillAdd--;
+                        }
+                        
+                        /// add a zero terminal in file buffer's end.
+                        fileBuff[fileSize ]='\0';
+                        
+                        
+                        
+                        
+                        int ll = vecLocalizedStrings.size();
+                        for (int j = 0; j < ll; j++)
+                        {
+                            vector<string> veckeyValues = vecLocalizedStrings[j];
                             
-                            /// the finded key is in a annotate?
-                            bool isKeyInAnnoate = isInAnnoate(fileBuff,keyBeg,keyLen);
+                            string key=veckeyValues[0];
+                            string value = veckeyValues[i+1];
                             
-                            if (isKeyInAnnoate || isKeyAValue )
+                            int keyLen=key.length();
+                            int valueLen = value.length();
+                            string line;
+                            //int lines=1;
+                            
+                            /// begin find the key and write the value.
+                            bool keyValueWrited = false;
+                            bool keyValueExist = false;
+                            printf("~~~%s~~~\n",key.c_str());
+                            char *keyBeg = fileBuff;
+                            
+                            while ( !keyValueExist && !keyValueWrited && (keyBeg = strstr(keyBeg, key.c_str()))  )
                             {
-                                keyBeg+=keyLen;
-                                continue;
-                            }
-                            else
-                            {
-                                char *valueBeg= strchr(keyBeg+keyLen+1, '"' );
-                                if (valueBeg )
+                                ///@todo: make sure the finded key is not a value...
+                                bool isKeyAValue = false;
+                                
+                                /// the finded key is in a annotate?
+                                bool isKeyInAnnoate = isInAnnoate(fileBuff,keyBeg,keyLen);
+                                
+                                if (isKeyInAnnoate || isKeyAValue )
                                 {
-                                    char *valueEnd = strchr(valueBeg + 1 , '"');
-                                    if (valueEnd )
+                                    keyBeg+=keyLen;
+                                    continue;
+                                }
+                                else
+                                {
+                                    char *valueBeg= strchr(keyBeg+keyLen+1, '"' );
+                                    if (valueBeg )
                                     {
-                                        //value beg ~ valueEnd == value ?
-                                        if (strncmp(valueBeg, value.c_str(), valueLen) != 0)
+                                        char *valueEnd = strchr(valueBeg + 1 , '"');
+                                        if (valueEnd )
                                         {
-                                            valueEnd++;
-                                            
-                                            ///replace  (valueBeg,valueEnd)  with value
-                                            memmove( valueBeg + valueLen +1 , valueEnd , fileBuff + fileSize - valueEnd);
-                                            memcpy(valueBeg, value.c_str() , valueLen );
-                                            fileSize += valueLen - (valueEnd - valueBeg);
-                                            isDirty=true;
-                                            keyValueWrited = true;
-                                            string temp(keyBeg,valueEnd);
-                                            printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                                            //value beg ~ valueEnd == value ?
+                                            if (strncmp(valueBeg, value.c_str(), valueLen) == 0)
+                                            {
+                                                printf("key value exist,skip this.\n");
+                                                keyValueExist = true;
+                                            }
+                                            else
+                                            {
+                                                valueEnd++;
+                                                
+                                                ///replace  (valueBeg,valueEnd)  with value
+                                                memmove( valueBeg + valueLen , valueEnd , fileBuff + fileSize - valueEnd);
+                                                memcpy(valueBeg, value.c_str() , valueLen );
+                                                fileSize += valueLen - (valueEnd - valueBeg);
+                                                isDirty=true;
+                                                keyValueWrited = true;
+                                                string temp(keyBeg,valueEnd);
+                                                printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                                            }
                                         }
                                     }
                                 }
+                                
+                                keyBeg += keyLen;
                             }
                             
-                            keyBeg += keyLen;
+                            if ( !keyValueExist && !keyValueWrited )
+                            {
+                                ///add to end then.
+                                memcpy(fileBuff + fileSize , key.c_str() , keyLen );
+                                fileSize+= keyLen;
+                                
+                                fileBuff[fileSize]='=';
+                                fileSize++;
+                                
+                                memcpy(fileBuff + fileSize , value.c_str() , valueLen);
+                                fileSize+=valueLen;
+                                
+                                fileBuff[fileSize]=';';
+                                fileBuff[fileSize+1]='\n';
+                                fileSize+=2;
+                                
+                                ///add a zero terminal so the c-str function work correctly.
+                                fileBuff[fileSize]='\0';
+                                
+                                isDirty = true;
+                                
+                                printf("add line:  %s = %s \n", key.c_str(), value.c_str() );
+                            }
+                            
+                            
                         }
                         
-                        if ( !keyValueWrited )
+                        fclose(file);
+                        
+                        //write back if data is changed.
+                        if (isDirty)
                         {
-                            ///add to end then.
-                            memcpy(fileBuff + fileSize , key.c_str() , keyLen );
-                            fileSize+= keyLen;
-                           
-                            fileBuff[fileSize]='=';
-                            fileSize++;
-                            
-                            memcpy(fileBuff + fileSize , value.c_str() , valueLen);
-                            fileSize+=valueLen;
-                            
-                            fileBuff[fileSize]=';';
-                            fileBuff[fileSize+1]='\n';
-                            fileSize+=2;
-                            
-                            ///add a zero terminal so the c-str function work correctly.
-                            fileBuff[fileSize]='\0';
-                            
-                            isDirty = true;
-                            
-                            printf("add line:  %s = %s \n", key.c_str(), value.c_str() );
+                            FILE *file2=fopen( folderName , "w");
+                            if (file2)
+                            {
+                                fwrite(fileBuff, sizeof(char), fileSize , file2);
+                                printf("write data back to file: %s\n",folderName);
+                                fclose(file2);
+                            }
                         }
                         
- 
+                        
                     }
-                    
-                    fclose(file);
-                    
-                    //write back if data is changed.
-                    if (isDirty)
+                    else
                     {
-                        FILE *file2=fopen( folderName , "w");
-                        if (file2)
-                        {
-                            fwrite(fileBuff, sizeof(char), fileSize , file2);
-                            printf("write data back to file: %s\n",folderName);
-                            fclose(file2);
-                        }
+                        printf("failed: open file: %s\n",folderName);
+                        printf("error number: %d\n", errno);
+                        return errno;
                     }
-                    
-                    
                 }
-                else
-                {
-                    printf("failed: open file: %s\n",folderName);
-                    printf("error number: %d\n", errno);
-                    return errno;
-                }
-            }    
+            }
         }
         else
         {
