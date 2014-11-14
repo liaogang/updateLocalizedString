@@ -111,16 +111,7 @@ bool isInAnnoate(char * begin ,char *test , int testLen)
     return false;
 }
 
-
-
-
-
-
-
-
-
-
-/// return
+/// return　'"' 是否是偶数个.
 bool parseLine(char *s,int len,vector<string> &ret)
 {
     if (s==NULL)
@@ -164,10 +155,10 @@ char * getLine(char *filebufPoint,string &line)
     {
         line=string(filebufPoint,p);
         
-        
         //point the next new line.
-        while (p[0]=='\n')
-            p++;
+        for (unsigned char c = p[0];
+             p[0]=='\n' || isspace(c) || iscntrl(c) ;
+             p++,c=p[0]);
         
         
         return p;
@@ -176,52 +167,6 @@ char * getLine(char *filebufPoint,string &line)
     return NULL;
 }
 
-/*
-bool getLine(FILE *file,string &line)
-{
-    const int bufLen=2000;
-    char buff[bufLen];
-    
-    int readed = fread(buff, sizeof(char), bufLen - 2  , file);
-    if (readed == 0)
-        return false;
-    
-    buff[readed+1]='\n';
-    buff[readed+2]='\0';
-    
-    char *p = strchr(buff, '\n');
-    if (p)
-    {
-        line=string(buff,p);
-        
-        
-        //point the next new line.
-        while (p[0]=='\n')
-            p++;
-        
-        fseek(file,  (p - buff) - readed , SEEK_CUR);
-        
-        return true;
-    }
-    
-    return  true;
-}
-*/
-
-///return where new line begins.
-//char* getLine(char *strFileBuf , string &line)
-//{
-//    char *p = strchr(strFileBuf, '\n');
-//    if (p)
-//    {
-//        line=string(strFileBuf,p);
-//        
-//        //point the next new line.
-//        p++;
-//    }
-//
-//    return p;
-//}
 
 
 
@@ -239,6 +184,9 @@ void Usage()
     printf("directory: parent path of `xx.lproj` folders\n");
     printf("file: file where updated localized string stores\n");
 }
+
+
+
 
 int main(int argc, const char * argv[])
 {
@@ -282,6 +230,15 @@ int main(int argc, const char * argv[])
                 printf("success open file: %s\n\n",filePathUpdate);
                
                 size_t fileSize = fread( fileBuff, sizeof(char), fileBuffLen, fileUpdate);
+                
+                /// add a line break and a zero terminal in file buffer's end.
+                if (fileBuff[fileSize-1]!='\n')
+                    fileBuff[fileSize] ='\n';
+                else
+                    fileBuff[fileSize] ='\0';
+                
+                fileBuff[fileSize+1] ='\0';
+                
                 
                 ///parse language order
                 string stringLanguageOrder;
@@ -376,7 +333,7 @@ int main(int argc, const char * argv[])
             printf("%lu rows in update file.\n",vecLocalizedStrings.size());
             
             
-            if (!bUpdateFileError)
+            if (!bUpdateFileError && vecLocalizedStrings.size() > 0)
             {
                 ///parse file xx.lproj/Localizable.strings .
                 

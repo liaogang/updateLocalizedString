@@ -38,17 +38,9 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		B25E86821A1499090094E025 /* test */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = test;
-			sourceTree = "<group>";
-		};
 		B2AE3B8F1A12135300762A8C = {
 			isa = PBXGroup;
 			children = (
-				B25E86821A1499090094E025 /* test */,
 				B2AE3B9A1A12135300762A8C /* updateLocalizedString */,
 				B2AE3B991A12135300762A8C /* Products */,
 			);
