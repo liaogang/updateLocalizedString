@@ -15,6 +15,35 @@ using namespace std;
 const int fileBuffLen = 500000;
 char fileBuff[fileBuffLen];
 
+enum enum_language
+{
+    language_English,
+    language_German,
+    language_Swedish,
+    language_French,
+    language_Dutch,
+    language_Italian,
+    language_Spanish,
+    language_Danish,
+    language_Finnish,
+    language_Norwegian,
+    language_Greek,
+    language_Portuguese,
+    language_Russian,
+    language_Polish,
+    language_Hungarian,
+    language_Czech,
+    language_Slovenian,
+    language_Slovak,
+    language_Romanian,
+    language_Simple_Chinese,
+    language_Korean,
+    language_Japanese,
+    language_Arabic,
+    language_Turkish
+};
+
+
 const char *language[]=
 {
     "English",	"German",           "Swedish",              "French",
@@ -27,6 +56,8 @@ const char *language[]=
     /*"Croatian",*/
     /*"Bulgarian",*/
 };
+
+
 
 const char *arrFolderName[] =
 {
