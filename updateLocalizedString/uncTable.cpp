@@ -742,7 +742,7 @@
 
 const struct UNCStruct
 {
-    unsigned int range;
+    unsigned short range;
     char const *value;
 } uncTable[]=
 {
@@ -905,7 +905,8 @@ const struct UNCStruct
     {0xFE50 ,"Small Form Variants"},
     {0xFE70 ,"Arabic Presentation Forms-B"},
     {0xFF00 ,"Halfwidth and Fullwidth Forms"},
-    {0xFFF0 ,"Specials"},
+    {0xFFF0 ,"Specials"}
+    /*, utf16里面暂时用不到下面这些
     {0x10000 ,"Linear B Syllabary"},
     {0x10080 ,"Linear B Ideograms"},
     {0x10100 ,"Aegean Numbers"},
@@ -991,7 +992,7 @@ const struct UNCStruct
     {0x1F700 ,"Alchemical Symbols"},
     {0x1F780 ,"Geometric Shapes Extended"},
     {0x1F800 ,"Arrows-C"},
-    {0x1F8FF ,"NULL"}
+    {0x1F8FF ,"NULL"}*/
 };
 
 
