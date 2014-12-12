@@ -19,12 +19,24 @@ void testUncTableFunc()
     uncTableConvert(test,len);
 }
 
+#include <unistd.h>
 
+void testUpdateLocalizedString(int argc,const char *argv[])
+{
+    char * arglist[3];
+    arglist[0]=(char*)argv[0];
+    arglist[1]=(char*)"update";
+    arglist[2]=(char*)"source.txt";
+    
+    execvp("updateLocalizedString",arglist);
+}
 
 
 int main(int argc, const char * argv[])
 {
-    testUncTableFunc();
+    //testUncTableFunc();
+    
+    testUpdateLocalizedString(argc, argv);
     
     
     return 0;

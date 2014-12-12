@@ -209,11 +209,16 @@ char * getLine(char *filebufPoint,string &line)
 */
 void Usage()
 {
-    printf("usage: exec [directory] update [file]\n");
+    printf("usage: exec [directory] update [sourcefile]\n");
     printf("            [directory] delete [key1,key2,...]\n");
     
     printf("directory: parent path of `xx.lproj` folders\n");
-    printf("file: file where updated localized string stores\n");
+    printf("sourcefile: file where updated localized string stores\n");
+    printf("sourcefile example:\n\n\
+          English   German     Swedish    French     Traditional Chinese\n\
+\"fooKey\" \"fooEn\"   \"fooGer\"   \"fooSwd\"   \"fooFrh\"   \"照片..\"\n\
+\"barKey\" \"barEn\"   \"barGer\"   \"barSwd\"   \"barFrh\"   \"图片..\"\n");
+
 }
 
 
