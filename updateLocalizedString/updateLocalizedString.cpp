@@ -12,6 +12,9 @@
 #include <vector>
 using namespace std;
 
+#define IN
+#define OUT
+
 const int fileBuffLen = 500000;
 char fileBuff[fileBuffLen];
 
@@ -200,6 +203,52 @@ char * getLine(char *filebufPoint,string &line)
 
 
 
+
+
+
+
+
+/**
+ *  get a line end with ';' , contain a "keyvalue" and ';' and end.
+ *  @return: NULL , if not contain ;
+    @return: sentence's end , if success contain.
+ */
+char* getLineEndIfContainKey(char *lineBeg , char *key , int keyLen , OUT char **value , OUT int *valueLen)
+{
+    char *keybeg = strstr(lineBeg, key);
+    
+    if (keybeg)
+    {
+        char *keyend = keybeg + keyLen;
+        
+        /// find ';' not begin with '\'
+        char *semicolonPrev = NULL;
+        char *semicolon = NULL;
+        while ( semicolonPrev[0] == '\\' )
+        {
+            semicolon = strchr(keyend + 1, ';');
+            if (semicolon)
+                semicolonPrev = semicolon - 1;
+            else
+                return NULL;
+        }
+        
+        char *valueBeg = strchr( keyend +1 , '"' );
+        char *valueEnd = strchr( valueBeg +1 , '"');
+
+        
+        if ( valueBeg && valueEnd > valueBeg && semicolon > valueEnd)
+        {
+            *value = valueBeg;
+            *valueLen = (int) ( valueEnd - valueBeg );
+            
+            return semicolon;
+        }
+    }
+    
+    
+    return NULL;
+}
 
 
 
@@ -468,25 +517,62 @@ int main(int argc, const char * argv[])
                                         char *valueEnd = strchr(valueBeg + 1 , '"');
                                         if (valueEnd )
                                         {
-                                            //value beg ~ valueEnd == value ?
-                                            if (strncmp(valueBeg, value.c_str(), valueLen) == 0)
+                                            valueEnd++;
+                                            
+                                            /// find ';' not begin with '\'
+                                            char *semicolonPrev = NULL;
+                                            char *semicolon = NULL;
+                                            while ( semicolonPrev == NULL || semicolonPrev[0] == '\\' )
                                             {
-                                                printf("key value exist,skip this.\n");
-                                                keyValueExist = true;
+                                                semicolon = strchr( keyBeg + keyLen , ';');
+                                                if (semicolon)
+                                                    semicolonPrev = semicolon - 1;
+                                                else
+                                                    break;
+                                            }
+                                            
+                                            /// "key" ="xxxvaluexxx" ;  --> replace
+                                            /// "key" = "value" ;    --> skip
+                                            ///"key"; \n "...     --> insert
+                                            if (semicolon > valueEnd)
+                                            {
+                                                
+                                                /// [value beg , valueEnd] is equal to  value ?
+                                                if (strncmp(valueBeg, value.c_str(), valueLen) == 0)
+                                                {
+                                                    printf("key value exist,skip this.\n");
+                                                    keyValueExist = true;
+                                                }
+                                                else
+                                                {
+                                                    ///replace  (valueBeg,valueEnd)  with value
+                                                    memmove( valueBeg + valueLen , valueEnd , fileBuff + fileSize - valueEnd);
+                                                    memcpy(valueBeg, value.c_str() , valueLen );
+                                                    fileSize += valueLen - (valueEnd - valueBeg);
+                                                    isDirty=true;
+                                                    keyValueWrited = true;
+                                                    string temp(keyBeg,valueEnd);
+                                                    printf("replace %s with %s \n",temp.c_str(),value.c_str() );
+                                                }
                                             }
                                             else
                                             {
-                                                valueEnd++;
+                                                printf("insert %s\n",value.c_str());
+                                                /// insert value before ';'
                                                 
-                                                ///replace  (valueBeg,valueEnd)  with value
-                                                memmove( valueBeg + valueLen , valueEnd , fileBuff + fileSize - valueEnd);
-                                                memcpy(valueBeg, value.c_str() , valueLen );
-                                                fileSize += valueLen - (valueEnd - valueBeg);
+                                                /// move [semicolun,..  to [semicolun +valueLen , ...
+                                                memmove(semicolon + valueLen + 1, semicolon, fileBuff + fileSize -semicolon );
+                                               
+                                               semicolon[0] = '=';
+                                               
+                                                /// insert
+                                                memcpy(semicolon + 1 , value.c_str(), valueLen);
+                                                
+                                                fileSize += valueLen + 1;
                                                 isDirty=true;
                                                 keyValueWrited = true;
-                                                string temp(keyBeg,valueEnd);
-                                                printf("replace %s with %s \n",temp.c_str(),value.c_str() );
                                             }
+                                            
                                         }
                                     }
                                 }
